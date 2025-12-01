@@ -9,6 +9,8 @@ const lightVInput = document.getElementById('lightV');
 const addRackBtn = document.getElementById('addRackBtn');
 const exportBtn = document.getElementById('exportBtn');
 const exportFormatSelect = document.getElementById('exportFormat');
+const importBtn = document.getElementById('importBtn');
+const importFileInput = document.getElementById('importFile');
 const racksContainer = document.getElementById('racksContainer');
 const paletteCanvas = document.getElementById('paletteCanvas');
 const confirmModal = document.getElementById('confirmModal');
@@ -500,6 +502,44 @@ function generateHEX() {
     downloadFile(content, `palette_${Date.now()}.hex`, 'text/plain');
 }
 
+function normalizeHexLine(line) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+        return null;
+    }
+    let value = trimmed;
+    if (value.startsWith('#')) {
+        value = value.slice(1);
+    }
+    if (value.length !== 6) {
+        return null;
+    }
+    if (!/^[0-9A-Fa-f]{6}$/.test(value)) {
+        return null;
+    }
+    return `#${value.toUpperCase()}`;
+}
+
+function importPaletteFromText(content) {
+    const lines = content.split(/\r?\n/);
+    const colors = [];
+    lines.forEach(line => {
+        const hex = normalizeHexLine(line);
+        if (hex && !colors.includes(hex)) {
+            colors.push(hex);
+        }
+    });
+    if (colors.length === 0) {
+        return;
+    }
+    racks = [];
+    rackIdCounter = 0;
+    racksContainer.innerHTML = '';
+    colors.forEach(color => {
+        createRack(color);
+    });
+}
+
 function exportPalette() {
     const format = exportFormatSelect.value;
     
@@ -539,6 +579,28 @@ lightSInput.addEventListener('change', updateAllRacks);
 lightVInput.addEventListener('change', updateAllRacks);
 
 exportBtn.addEventListener('click', exportPalette);
+
+importBtn.addEventListener('click', () => {
+    if (!importFileInput) {
+        return;
+    }
+    importFileInput.value = '';
+    importFileInput.click();
+});
+
+importFileInput.addEventListener('change', event => {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+    if (!file) {
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = typeof e.target.result === 'string' ? e.target.result : '';
+        importPaletteFromText(text);
+        importFileInput.value = '';
+    };
+    reader.readAsText(file);
+});
 
 confirmDeleteBtn.addEventListener('click', () => {
     if (rackToDelete !== null) {
