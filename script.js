@@ -540,6 +540,63 @@ function importPaletteFromText(content) {
     });
 }
 
+function importPaletteFromImage(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const src = typeof e.target.result === 'string' ? e.target.result : '';
+        if (!src) {
+            return;
+        }
+        const img = new Image();
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 256;
+            if (width > maxSize || height > maxSize) {
+                const ratio = Math.min(maxSize / width, maxSize / height);
+                width = Math.max(1, Math.floor(width * ratio));
+                height = Math.max(1, Math.floor(height * ratio));
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const colorSet = new Set();
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+                if (a === 0) {
+                    continue;
+                }
+                const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+                colorSet.add(hex);
+            }
+            const allColors = Array.from(colorSet);
+            if (allColors.length === 0) {
+                return;
+            }
+            const maxColors = 256;
+            const colors = allColors.slice(0, maxColors);
+            racks = [];
+            rackIdCounter = 0;
+            racksContainer.innerHTML = '';
+            colors.forEach(color => {
+                createRack(color);
+            });
+        };
+        img.src = src;
+    };
+    reader.readAsDataURL(file);
+}
+
 function exportPalette() {
     const format = exportFormatSelect.value;
     
@@ -591,6 +648,12 @@ importBtn.addEventListener('click', () => {
 importFileInput.addEventListener('change', event => {
     const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
     if (!file) {
+        return;
+    }
+    const isImage = file.type.startsWith('image/');
+    if (isImage) {
+        importPaletteFromImage(file);
+        importFileInput.value = '';
         return;
     }
     const reader = new FileReader();
