@@ -9,8 +9,6 @@ const lightVInput = document.getElementById('lightV');
 const addRackBtn = document.getElementById('addRackBtn');
 const exportBtn = document.getElementById('exportBtn');
 const exportFormatSelect = document.getElementById('exportFormat');
-const importBtn = document.getElementById('importBtn');
-const importFileInput = document.getElementById('importFile');
 const racksContainer = document.getElementById('racksContainer');
 const paletteCanvas = document.getElementById('paletteCanvas');
 const confirmModal = document.getElementById('confirmModal');
@@ -502,101 +500,6 @@ function generateHEX() {
     downloadFile(content, `palette_${Date.now()}.hex`, 'text/plain');
 }
 
-function normalizeHexLine(line) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-        return null;
-    }
-    let value = trimmed;
-    if (value.startsWith('#')) {
-        value = value.slice(1);
-    }
-    if (value.length !== 6) {
-        return null;
-    }
-    if (!/^[0-9A-Fa-f]{6}$/.test(value)) {
-        return null;
-    }
-    return `#${value.toUpperCase()}`;
-}
-
-function importPaletteFromText(content) {
-    const lines = content.split(/\r?\n/);
-    const colors = [];
-    lines.forEach(line => {
-        const hex = normalizeHexLine(line);
-        if (hex && !colors.includes(hex)) {
-            colors.push(hex);
-        }
-    });
-    if (colors.length === 0) {
-        return;
-    }
-    racks = [];
-    rackIdCounter = 0;
-    racksContainer.innerHTML = '';
-    colors.forEach(color => {
-        createRack(color);
-    });
-}
-
-function importPaletteFromImage(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-        const src = typeof e.target.result === 'string' ? e.target.result : '';
-        if (!src) {
-            return;
-        }
-        const img = new Image();
-        img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            const maxSize = 256;
-            if (width > maxSize || height > maxSize) {
-                const ratio = Math.min(maxSize / width, maxSize / height);
-                width = Math.max(1, Math.floor(width * ratio));
-                height = Math.max(1, Math.floor(height * ratio));
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                return;
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const colorSet = new Set();
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const a = data[i + 3];
-                if (a === 0) {
-                    continue;
-                }
-                const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
-                colorSet.add(hex);
-            }
-            const allColors = Array.from(colorSet);
-            if (allColors.length === 0) {
-                return;
-            }
-            const maxColors = 256;
-            const colors = allColors.slice(0, maxColors);
-            racks = [];
-            rackIdCounter = 0;
-            racksContainer.innerHTML = '';
-            colors.forEach(color => {
-                createRack(color);
-            });
-        };
-        img.src = src;
-    };
-    reader.readAsDataURL(file);
-}
-
 function exportPalette() {
     const format = exportFormatSelect.value;
     
@@ -636,34 +539,6 @@ lightSInput.addEventListener('change', updateAllRacks);
 lightVInput.addEventListener('change', updateAllRacks);
 
 exportBtn.addEventListener('click', exportPalette);
-
-importBtn.addEventListener('click', () => {
-    if (!importFileInput) {
-        return;
-    }
-    importFileInput.value = '';
-    importFileInput.click();
-});
-
-importFileInput.addEventListener('change', event => {
-    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
-    if (!file) {
-        return;
-    }
-    const isImage = file.type.startsWith('image/');
-    if (isImage) {
-        importPaletteFromImage(file);
-        importFileInput.value = '';
-        return;
-    }
-    const reader = new FileReader();
-    reader.onload = e => {
-        const text = typeof e.target.result === 'string' ? e.target.result : '';
-        importPaletteFromText(text);
-        importFileInput.value = '';
-    };
-    reader.readAsText(file);
-});
 
 confirmDeleteBtn.addEventListener('click', () => {
     if (rackToDelete !== null) {
